@@ -2,9 +2,9 @@
 import type { Server as HttpServer } from "node:http";
 import { Server } from "socket.io";
 
-import { env } from "@/config/env";
-import { leagueEvents } from "@/events/league-events";
-import { LeagueService } from "@/services/league.service";
+import { env } from "../config/env";
+import { leagueEvents } from "../events/league-events";
+import { LeagueService } from "../services/league.service";
 
 import type {
   ClientToServerEvents,
