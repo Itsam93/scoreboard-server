@@ -11,6 +11,12 @@ import type {
   ServerToClientEvents,
 } from "@/types/socket";
 
+const allowedOrigins = [
+  env.CLIENT_URL,
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+];
+
 export function createSocketServer(
   httpServer: HttpServer,
 ): Server<ClientToServerEvents, ServerToClientEvents> {
@@ -19,8 +25,9 @@ export function createSocketServer(
     ServerToClientEvents
   >(httpServer, {
     cors: {
-      origin: env.CLIENT_URL,
-      methods: ["GET"],
+      origin: allowedOrigins,
+      methods: ["GET", "POST"],
+      credentials: true,
     },
   });
 

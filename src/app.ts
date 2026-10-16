@@ -22,9 +22,23 @@ const app = express();
 
 app.disable("x-powered-by");
 
+const allowedOrigins = new Set([
+  env.CLIENT_URL,
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+]);
+
 app.use(
   cors({
-    origin: env.CLIENT_URL,
+    origin(origin, callback) {
+      // Allow requests without an Origin header, such as server-to-server calls.
+      if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`Origin not allowed by CORS: ${origin}`));
+    },
     credentials: true,
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: [
