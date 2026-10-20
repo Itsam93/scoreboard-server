@@ -1,4 +1,3 @@
-
 import express, {
   type NextFunction,
   type Request,
@@ -11,12 +10,15 @@ import { env } from "./config/env";
 import { requireAdminApiKey } from "./middleware/admin-api-key";
 
 import { ContributionServiceError } from "./services/contribution.service";
+import { GroupManagerServiceError } from "./services/group-manager.service";
 
 import adminRoutes from "./routes/admin.routes";
 import leagueRoutes from "./routes/league.routes";
 import zonesRoutes from "./routes/zones.routes";
 import groupsRoutes from "./routes/groups.routes";
 import classificationsRoutes from "./routes/classifications.routes";
+import managerRoutes from "./routes/manager.routes";
+import groupManagerAdminRoutes from "./routes/group-manager-admin.routes";
 
 const app = express();
 
@@ -31,7 +33,6 @@ const allowedOrigins = new Set([
 app.use(
   cors({
     origin(origin, callback) {
-      // Allow requests without an Origin header, such as server-to-server calls.
       if (!origin || allowedOrigins.has(origin)) {
         callback(null, true);
         return;
@@ -40,13 +41,20 @@ app.use(
       callback(new Error(`Origin not allowed by CORS: ${origin}`));
     },
     credentials: true,
-    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    methods: [
+      "GET",
+      "POST",
+      "PATCH",
+      "PUT",
+      "DELETE",
+      "OPTIONS",
+    ],
     allowedHeaders: [
       "Content-Type",
       "Authorization",
       "x-admin-key",
     ],
-  })
+  }),
 );
 
 app.use(express.json({ limit: "100kb" }));
@@ -55,15 +63,15 @@ app.use(
   express.urlencoded({
     extended: true,
     limit: "100kb",
-  })
+  }),
 );
 
 /**
- * Public routes
+ * Public API routes
  */
 
 app.get("/", (_req, res) => {
-  res.json({
+  res.status(200).json({
     name: "Church Contribution League API",
     version: "1.0.0",
     status: "running",
@@ -80,41 +88,87 @@ app.get("/health", (_req, res) => {
 
   res.status(databaseConnected ? 200 : 503).json({
     success: databaseConnected,
-    status: databaseConnected ? "OK" : "DATABASE_UNAVAILABLE",
-    database: databaseConnected ? "connected" : "disconnected",
+    status: databaseConnected
+      ? "OK"
+      : "DATABASE_UNAVAILABLE",
+    database: databaseConnected
+      ? "connected"
+      : "disconnected",
     environment: env.NODE_ENV,
     timestamp: new Date().toISOString(),
   });
 });
 
+/**
+ * Public league routes
+ */
+
 app.use("/api/league", leagueRoutes);
 
 /**
+ * Group Manager portal
+ *
+ * The manager router handles public login and applies
+ * manager authentication to protected portal endpoints.
+ *
+ * Manager requests use a Bearer token, not the admin API key.
+ */
+
+app.use("/api/manager", managerRoutes);
+
+/**
  * Protected admin routes
+ *
+ * General administration, including Giving management.
  */
 
 app.use(
   "/api/admin",
   requireAdminApiKey,
-  adminRoutes
+  adminRoutes,
 );
+
+/**
+ * Group Manager account administration
+ *
+ * Allows administrators to list, create, update, activate,
+ * deactivate, and delete Group Manager accounts.
+ */
+
+app.use(
+  "/api/admin/group-managers",
+  requireAdminApiKey,
+  groupManagerAdminRoutes,
+);
+
+/**
+ * Zone administration
+ */
 
 app.use(
   "/api/admin/zones",
   requireAdminApiKey,
-  zonesRoutes
+  zonesRoutes,
 );
+
+/**
+ * Group administration
+ */
 
 app.use(
   "/api/admin/groups",
   requireAdminApiKey,
-  groupsRoutes
+  groupsRoutes,
 );
+
+/**
+ * Classification administration
+ */
 
 app.use(
   "/api/admin/classifications",
   requireAdminApiKey,
-  classificationsRoutes
+  classificationsRoutes,
 );
 
 /**
@@ -137,9 +191,12 @@ app.use(
     error: unknown,
     _req: Request,
     res: Response,
-    _next: NextFunction
+    _next: NextFunction,
   ) => {
-    if (error instanceof ContributionServiceError) {
+    if (
+      error instanceof ContributionServiceError ||
+      error instanceof GroupManagerServiceError
+    ) {
       res.status(error.statusCode).json({
         success: false,
         message: error.message,
@@ -175,13 +232,24 @@ app.use(
       return;
     }
 
+    if (
+      error instanceof Error &&
+      error.message.startsWith("Origin not allowed by CORS:")
+    ) {
+      res.status(403).json({
+        success: false,
+        message: "Origin not allowed.",
+      });
+      return;
+    }
+
     console.error("Unhandled API error:", error);
 
     res.status(500).json({
       success: false,
       message: "An unexpected server error occurred.",
     });
-  }
+  },
 );
 
 export default app;

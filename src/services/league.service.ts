@@ -1,4 +1,3 @@
-
 import mongoose from "mongoose";
 
 import { Contribution } from "../models/Contribution";
@@ -19,7 +18,13 @@ export class LeagueService {
         totalNaira: number;
         contributionCount: number;
       }>([
-        { $match: { status: "verified" } },
+        {
+          $match: {
+            status: {
+              $in: ["recorded", "verified"],
+            },
+          },
+        },
         {
           $group: {
             _id: "$groupId",
@@ -39,12 +44,12 @@ export class LeagueService {
       totals.map((item) => [
         item._id.toString(),
         item,
-      ])
+      ]),
     );
 
     const standings = groups.map((group) => {
       const total = totalsByGroup.get(
-        group._id.toString()
+        group._id.toString(),
       );
 
       const totalEspees = total?.totalEspees ?? 0;
@@ -67,7 +72,8 @@ export class LeagueService {
         zone: group.zoneId,
         totalEspees,
         totalNaira,
-        contributionCount: total?.contributionCount ?? 0,
+        contributionCount:
+          total?.contributionCount ?? 0,
         classification: classification?.name ?? null,
       };
     });

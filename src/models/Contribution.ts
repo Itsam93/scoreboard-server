@@ -2,10 +2,14 @@
 import mongoose, { Schema, type InferSchemaType } from "mongoose";
 
 export const CONTRIBUTION_STATUSES = [
+  "recorded",
+  "reversed",
+
+  // Legacy values retained temporarily for historical records.
+  // New contributions must never use these statuses.
   "pending",
   "verified",
   "rejected",
-  "reversed",
 ] as const;
 
 export type ContributionStatus =
@@ -33,12 +37,12 @@ const contributionSchema = new Schema(
     amountNaira: {
       type: Number,
       required: true,
-      min: 0,
+      min: 0.01,
     },
     status: {
       type: String,
       enum: CONTRIBUTION_STATUSES,
-      default: "pending",
+      default: "recorded",
       required: true,
       index: true,
     },
@@ -54,6 +58,22 @@ const contributionSchema = new Schema(
       maxlength: 1000,
       default: "",
     },
+
+    // Audit trail for new entries.
+    recordedByRole: {
+      type: String,
+      enum: ["admin", "groupManager"],
+      default: "admin",
+      required: true,
+    },
+    recordedByManagerId: {
+      type: Schema.Types.ObjectId,
+      ref: "GroupManager",
+      default: null,
+    },
+
+    // Legacy verification/rejection metadata. Retained so old
+    // records remain readable while the workflow is migrated.
     verifiedAt: {
       type: Date,
       default: null,
@@ -68,6 +88,8 @@ const contributionSchema = new Schema(
       maxlength: 1000,
       default: "",
     },
+
+    // Reversal is retained for documented corrections.
     reversedAt: {
       type: Date,
       default: null,
@@ -78,9 +100,14 @@ const contributionSchema = new Schema(
       maxlength: 1000,
       default: "",
     },
-    reversedBy: {
+    reversedByRole: {
+      type: String,
+      enum: ["admin", "groupManager"],
+      default: null,
+    },
+    reversedByManagerId: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: "GroupManager",
       default: null,
     },
   },

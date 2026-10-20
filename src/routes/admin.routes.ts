@@ -2,33 +2,38 @@ import { Router } from "express";
 import { z } from "zod";
 
 import { ContributionService } from "../services/contribution.service";
+import type { ContributionStatus } from "../models/Contribution";
 
 const router = Router();
 const contributionService = new ContributionService();
 
-const createContributionSchema = z.object({
-  groupId: z.string().trim().min(1),
-  amountEspees: z.number().finite().positive(),
-  amountNaira: z.number().finite().positive(),
-  reference: z.string().trim().max(160).optional(),
-  note: z.string().trim().max(1000).optional(),
-});
+const createContributionSchema = z
+  .object({
+    groupId: z.string().trim().min(1),
+    amountNaira: z.number().finite().positive().optional(),
+    amountEspees: z.number().finite().positive().optional(),
+    reference: z.string().trim().max(160).optional(),
+    note: z.string().trim().max(1000).optional(),
+  })
+  .refine(
+    (data) =>
+      (data.amountNaira !== undefined) !==
+      (data.amountEspees !== undefined),
+    {
+      message:
+        "Provide either amountNaira or amountEspees, but not both.",
+      path: ["amountNaira"],
+    },
+  );
 
-const statusSchema = z.enum([
-  "pending",
-  "verified",
-  "rejected",
-  "reversed",
-]);
-
-const rejectSchema = z.object({
-  reason: z.string().trim().min(1).max(1000),
-});
+const statusSchema = z.enum(["recorded", "reversed"]);
 
 const reverseSchema = z.object({
   reason: z.string().trim().min(1).max(1000),
 });
 
+// POST /api/admin/contributions
+// Newly recorded Givings count immediately.
 router.post("/contributions", async (req, res) => {
   const parsed = createContributionSchema.safeParse(req.body);
 
@@ -43,24 +48,20 @@ router.post("/contributions", async (req, res) => {
 
   const contribution = await contributionService.create(
     parsed.data,
+    { role: "admin" },
   );
 
   res.status(201).json({
     success: true,
-    message: "Contribution recorded and awaiting verification.",
+    message: "Giving recorded successfully and counted immediately.",
     data: contribution,
   });
 });
 
+// GET /api/admin/contributions
 router.get("/contributions", async (req, res) => {
   const rawStatus = req.query.status;
-
-  let status:
-    | "pending"
-    | "verified"
-    | "rejected"
-    | "reversed"
-    | undefined;
+  let status: ContributionStatus | undefined;
 
   if (rawStatus !== undefined) {
     const parsed = statusSchema.safeParse(rawStatus);
@@ -68,7 +69,8 @@ router.get("/contributions", async (req, res) => {
     if (!parsed.success) {
       res.status(400).json({
         success: false,
-        message: "Invalid contribution status filter.",
+        message: "Invalid Giving status filter.",
+        errors: parsed.error.issues,
       });
       return;
     }
@@ -85,48 +87,7 @@ router.get("/contributions", async (req, res) => {
   });
 });
 
-router.patch(
-  "/contributions/:contributionId/verify",
-  async (req, res) => {
-    const contribution = await contributionService.verify(
-      req.params.contributionId,
-    );
-
-    res.json({
-      success: true,
-      message: "Contribution verified successfully.",
-      data: contribution,
-    });
-  },
-);
-
-router.patch(
-  "/contributions/:contributionId/reject",
-  async (req, res) => {
-    const parsed = rejectSchema.safeParse(req.body);
-
-    if (!parsed.success) {
-      res.status(400).json({
-        success: false,
-        message: "A valid rejection reason is required.",
-        errors: parsed.error.issues,
-      });
-      return;
-    }
-
-    const contribution = await contributionService.reject(
-      req.params.contributionId,
-      parsed.data.reason,
-    );
-
-    res.json({
-      success: true,
-      message: "Contribution rejected.",
-      data: contribution,
-    });
-  },
-);
-
+// PATCH /api/admin/contributions/:contributionId/reverse
 router.patch(
   "/contributions/:contributionId/reverse",
   async (req, res) => {
@@ -144,11 +105,13 @@ router.patch(
     const contribution = await contributionService.reverse(
       req.params.contributionId,
       parsed.data.reason,
+      { role: "admin" },
     );
 
     res.json({
       success: true,
-      message: "Contribution reversed successfully.",
+      message:
+        "Giving reversed successfully and excluded from the standings.",
       data: contribution,
     });
   },
