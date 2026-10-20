@@ -1,3 +1,4 @@
+
 import { Router } from "express";
 import { z } from "zod";
 
@@ -87,7 +88,26 @@ router.get("/contributions", async (req, res) => {
   });
 });
 
+// DELETE /api/admin/contributions/:contributionId
+// Permanently deletes a Giving.
+router.delete(
+  "/contributions/:contributionId",
+  async (req, res) => {
+    const contribution =
+      await contributionService.deletePermanently(
+        req.params.contributionId,
+      );
+
+    res.json({
+      success: true,
+      message: "Giving permanently deleted successfully.",
+      data: contribution,
+    });
+  },
+);
+
 // PATCH /api/admin/contributions/:contributionId/reverse
+// Retains the existing reversal functionality.
 router.patch(
   "/contributions/:contributionId/reverse",
   async (req, res) => {

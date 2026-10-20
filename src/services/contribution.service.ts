@@ -1,3 +1,4 @@
+
 import mongoose from "mongoose";
 
 import {
@@ -36,10 +37,7 @@ export class ContributionServiceError extends Error {
   }
 }
 
-function validateObjectId(
-  id: string,
-  label: string,
-): void {
+function validateObjectId(id: string, label: string): void {
   if (!mongoose.isValidObjectId(id)) {
     throw new ContributionServiceError(
       `Invalid ${label}.`,
@@ -267,10 +265,7 @@ export class ContributionService {
     reason: string,
     actor: ContributionActor,
   ) {
-    validateObjectId(
-      contributionId,
-      "contribution ID",
-    );
+    validateObjectId(contributionId, "contribution ID");
     validateActor(actor);
 
     const cleanReason = validateReason(reason);
@@ -326,6 +321,40 @@ export class ContributionService {
       `This contribution cannot be reversed because its current status is "${existing.status}". Only recorded or legacy verified contributions can be reversed.`,
       409,
     );
+  }
+
+  async deletePermanently(
+    contributionId: string,
+    actor: ContributionActor = { role: "admin" },
+  ) {
+    validateObjectId(contributionId, "contribution ID");
+    validateActor(actor);
+
+    if (actor.role !== "admin") {
+      throw new ContributionServiceError(
+        "Only an administrator can permanently delete a Giving.",
+        403,
+      );
+    }
+
+    const contribution =
+      await Contribution.findByIdAndDelete(contributionId);
+
+    if (!contribution) {
+      throw new ContributionServiceError(
+        "Giving not found. It may already have been deleted.",
+        404,
+      );
+    }
+
+    return {
+      _id: contribution._id.toString(),
+      groupId: contribution.groupId.toString(),
+      amountEspees: contribution.amountEspees,
+      amountNaira: contribution.amountNaira,
+      status: contribution.status,
+      deleted: true,
+    };
   }
 
   async list(status?: ContributionStatus) {
