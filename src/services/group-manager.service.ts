@@ -8,6 +8,8 @@ import {
 } from "../utils/password";
 import { createManagerToken } from "../utils/manager-token";
 
+const MIN_PASSWORD_LENGTH = 7;
+
 export class GroupManagerServiceError extends Error {
   constructor(
     message: string,
@@ -103,6 +105,16 @@ function isDuplicateKeyError(error: unknown): boolean {
 async function hashManagerPassword(
   password: string,
 ): Promise<string> {
+  if (
+    typeof password !== "string" ||
+    password.length < MIN_PASSWORD_LENGTH
+  ) {
+    throw new GroupManagerServiceError(
+      `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`,
+      400,
+    );
+  }
+
   try {
     return await hashPassword(password);
   } catch (error) {
@@ -155,7 +167,9 @@ export class GroupManagerService {
 
     await this.validateActiveGroups(groupIds);
 
-    const passwordHash = await hashManagerPassword(input.password);
+    const passwordHash = await hashManagerPassword(
+      input.password,
+    );
 
     try {
       const manager = await GroupManager.create({
@@ -293,7 +307,10 @@ export class GroupManagerService {
       );
     }
 
-    if (input.password !== undefined && input.password !== "") {
+    if (
+      input.password !== undefined &&
+      input.password !== ""
+    ) {
       manager.passwordHash = await hashManagerPassword(
         input.password,
       );

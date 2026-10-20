@@ -44,9 +44,9 @@ function validatePassword(password: string): void {
     throw new Error("Password must be a string.");
   }
 
-  if (password.length < 12) {
+  if (password.length < 7) {
     throw new Error(
-      "Password must contain at least 12 characters.",
+      "Password must contain at least 7 characters.",
     );
   }
 
