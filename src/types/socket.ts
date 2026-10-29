@@ -1,4 +1,3 @@
-
 import type { LeagueService } from "../services/league.service";
 
 export type LeagueStandings = Awaited<
@@ -14,6 +13,16 @@ export interface LeagueUpdatedPayload {
   updatedAt: string;
 }
 
+export interface LeagueContributionPayload {
+  contributionId: string;
+  groupId: string;
+  groupName: string;
+  amountEspees: number;
+  amountNaira: number;
+  classification: string | null;
+  updatedAt: string;
+}
+
 export type ClientToServerEvents = Record<never, never>;
 
 export interface ServerToClientEvents {
@@ -23,5 +32,9 @@ export interface ServerToClientEvents {
 
   "league:updated": (
     payload: LeagueUpdatedPayload,
+  ) => void;
+
+  "league:contribution": (
+    payload: LeagueContributionPayload,
   ) => void;
 }

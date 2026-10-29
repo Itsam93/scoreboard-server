@@ -1,9 +1,9 @@
-
 import type { Server as HttpServer } from "node:http";
 import { Server } from "socket.io";
 
 import { env } from "../config/env";
 import { leagueEvents } from "../events/league-events";
+import { Group } from "../models/Group";
 import { LeagueService } from "../services/league.service";
 
 import type {
@@ -49,8 +49,37 @@ export function createSocketServer(
     }
   }
 
-  leagueEvents.onContributionVerified(async () => {
+  leagueEvents.onContributionVerified(async (event) => {
     await broadcastStandings();
+
+    try {
+      const [group, classification] = await Promise.all([
+        Group.findById(event.groupId)
+          .select("name")
+          .lean(),
+
+        leagueService.getClassificationForEspees(
+          event.amountEspees,
+        ),
+      ]);
+
+      if (group) {
+        io.emit("league:contribution", {
+          contributionId: event.contributionId,
+          groupId: event.groupId,
+          groupName: group.name,
+          amountEspees: event.amountEspees,
+          amountNaira: event.amountNaira,
+          classification,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    } catch (error: unknown) {
+      console.error(
+        "Failed to broadcast individual contribution:",
+        error,
+      );
+    }
 
     io.emit("league:updated", {
       updatedAt: new Date().toISOString(),

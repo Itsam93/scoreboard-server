@@ -5,6 +5,29 @@ import { Group } from "../models/Group";
 import { ClassificationRule } from "../models/ClassificationRule";
 
 export class LeagueService {
+  async getClassificationForEspees(
+    amountEspees: number,
+  ): Promise<string | null> {
+    const rules = await ClassificationRule.find({
+      isActive: true,
+    })
+      .sort({ minEspees: -1, displayOrder: 1 })
+      .lean();
+
+    const classification = rules.find((rule) => {
+      const aboveMinimum =
+        amountEspees >= rule.minEspees;
+
+      const belowMaximum =
+        rule.maxEspees == null ||
+        amountEspees <= rule.maxEspees;
+
+      return aboveMinimum && belowMaximum;
+    });
+
+    return classification?.name ?? null;
+  }
+
   async getStandings() {
     const [groups, totals, rules] = await Promise.all([
       Group.find({ isActive: true })
