@@ -49,6 +49,7 @@ export function createSocketServer(
     }
   }
 
+  // Handle newly recorded contributions.
   leagueEvents.onContributionVerified(async (event) => {
     await broadcastStandings();
 
@@ -86,9 +87,19 @@ export function createSocketServer(
     });
   });
 
+  // Handle permanently deleted contributions.
+  leagueEvents.onContributionDeleted(async () => {
+    await broadcastStandings();
+
+    io.emit("league:updated", {
+      updatedAt: new Date().toISOString(),
+    });
+  });
+
   io.on("connection", (socket) => {
     console.log(`League scoreboard connected: ${socket.id}`);
 
+    // Send the latest standings to newly connected clients.
     void broadcastStandings();
 
     socket.on("disconnect", () => {

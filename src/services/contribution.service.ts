@@ -1,4 +1,3 @@
-
 import mongoose from "mongoose";
 
 import {
@@ -347,7 +346,7 @@ export class ContributionService {
       );
     }
 
-    return {
+    const deletedContribution = {
       _id: contribution._id.toString(),
       groupId: contribution.groupId.toString(),
       amountEspees: contribution.amountEspees,
@@ -355,6 +354,16 @@ export class ContributionService {
       status: contribution.status,
       deleted: true,
     };
+
+    // Notify the league system after successful permanent deletion.
+    leagueEvents.publishContributionDeleted({
+      contributionId: deletedContribution._id,
+      groupId: deletedContribution.groupId,
+      amountEspees: deletedContribution.amountEspees,
+      amountNaira: deletedContribution.amountNaira,
+    });
+
+    return deletedContribution;
   }
 
   async list(status?: ContributionStatus) {

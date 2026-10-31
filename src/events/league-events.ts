@@ -1,4 +1,3 @@
-
 import { EventEmitter } from "node:events";
 
 export interface ContributionVerifiedEvent {
@@ -14,6 +13,13 @@ export interface ContributionRecordedEvent
   recordedByManagerId?: string | null;
 }
 
+export interface ContributionDeletedEvent {
+  contributionId: string;
+  groupId: string;
+  amountEspees: number;
+  amountNaira: number;
+}
+
 type ContributionRecordedHandler = (
   event: ContributionRecordedEvent,
 ) => void | Promise<void>;
@@ -22,7 +28,12 @@ type ContributionVerifiedHandler = (
   event: ContributionVerifiedEvent,
 ) => void | Promise<void>;
 
+type ContributionDeletedHandler = (
+  event: ContributionDeletedEvent,
+) => void | Promise<void>;
+
 class LeagueEventBus extends EventEmitter {
+  // New contribution recorded event.
   publishContributionRecorded(
     event: ContributionRecordedEvent,
   ): void {
@@ -35,7 +46,7 @@ class LeagueEventBus extends EventEmitter {
     this.on("contribution:recorded", handler);
   }
 
-  // Retained for compatibility with existing listeners.
+  // Legacy event retained for compatibility with existing listeners.
   publishContributionVerified(
     event: ContributionVerifiedEvent,
   ): void {
@@ -46,6 +57,19 @@ class LeagueEventBus extends EventEmitter {
     handler: ContributionVerifiedHandler,
   ): void {
     this.on("contribution:verified", handler);
+  }
+
+  // Permanently deleted contribution event.
+  publishContributionDeleted(
+    event: ContributionDeletedEvent,
+  ): void {
+    this.emit("contribution:deleted", event);
+  }
+
+  onContributionDeleted(
+    handler: ContributionDeletedHandler,
+  ): void {
+    this.on("contribution:deleted", handler);
   }
 }
 

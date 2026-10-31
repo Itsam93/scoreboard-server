@@ -15,7 +15,7 @@
     "resolveJsonModule": true,
     "types": ["node"]
   },
-  "include": ["src"],
+  "include": ["src", "clear-contributions.ts"],
   "exclude": [
     "dist",
     "node_modules"
